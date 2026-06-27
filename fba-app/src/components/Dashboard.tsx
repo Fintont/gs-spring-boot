@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   MockSpApiProvider, ProductPerformance, computeSummary, marginOverTime, burnDown, reorderAlerts,
 } from '../domain/performance';
 import { MiniChart } from './MiniChart';
+import { fetchJson } from './api';
 
 const mock = new MockSpApiProvider();
 type Source = 'mock' | 'spapi';
@@ -13,10 +14,7 @@ const last = <T,>(a: T[]): T | undefined => a[a.length - 1];
 
 async function loadPortfolio(source: Source): Promise<ProductPerformance[]> {
   if (source === 'mock') return mock.fetchPortfolio();
-  const res = await fetch(`/api/performance?provider=${source}`);
-  const body = await res.json();
-  if (!res.ok) throw new Error(body?.error ?? `API error (${res.status})`);
-  return body as ProductPerformance[];
+  return fetchJson<ProductPerformance[]>(`/api/performance?provider=${source}`);
 }
 
 export function Dashboard() {
@@ -24,14 +22,16 @@ export function Dashboard() {
   const [portfolio, setPortfolio] = useState<ProductPerformance[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const reqId = useRef(0);
 
   const load = (s: Source) => {
+    const id = ++reqId.current; // ignore out-of-order responses when switching source
     setLoading(true);
     setError(null);
     loadPortfolio(s)
-      .then(setPortfolio)
-      .catch((e) => { setError(e instanceof Error ? e.message : 'Failed to load'); setPortfolio([]); })
-      .finally(() => setLoading(false));
+      .then((p) => { if (id === reqId.current) setPortfolio(p); })
+      .catch((e) => { if (id === reqId.current) { setError(e instanceof Error ? e.message : 'Failed to load'); setPortfolio([]); } })
+      .finally(() => { if (id === reqId.current) setLoading(false); });
   };
 
   useEffect(() => load('mock'), []);

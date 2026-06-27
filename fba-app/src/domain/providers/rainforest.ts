@@ -37,7 +37,10 @@ export function mapRainforestToSignal(raw: RainforestSearchRaw, keyword: string,
   const avgPrice = prices.length ? round2(mean(prices)) : 0;
   const avgRating = ratings.length ? round2(mean(ratings)) : 0;
   const reviewCount = reviewCounts.length ? Math.round(median(reviewCounts)) : 0;
-  const competitorCount = raw.pagination?.total_results ?? raw.search_information?.total_results ?? results.length;
+  // The number of serious competing listings, NOT the catalogue-wide total_results
+  // (which is often thousands and would peg every keyword to "saturated"). Use the count
+  // of returned search results — the visible front-page competition.
+  const competitorCount = results.length;
 
   return finalizeSignal({
     keyword, marketplace,

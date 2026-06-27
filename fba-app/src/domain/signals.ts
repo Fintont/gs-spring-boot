@@ -19,6 +19,9 @@
  * `MarketSignalProvider` in phase 2; a deterministic mock lives here for offline work.
  */
 
+import { mean, median } from './math';
+import { hashString, mulberry32 } from './rng';
+
 export type SignalSource = 'market' | 'own-sales';
 
 export type DemandStability = 'steady' | 'rising' | 'declining' | 'volatile' | 'spike' | 'insufficient';
@@ -102,18 +105,9 @@ const TREND_PCT = 0.08; // |slope/mean| per period above this is rising/declinin
 const SPIKE_RATIO = 3; // max must be ≥ 3× the median of the rest …
 const SPIKE_REST_CV = 0.4; // … and the rest must be relatively flat to count as a one-off spike
 
-function mean(xs: number[]): number {
-  return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
-}
 function std(xs: number[], m = mean(xs)): number {
   if (!xs.length) return 0;
   return Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / xs.length);
-}
-function median(xs: number[]): number {
-  if (!xs.length) return 0;
-  const s = [...xs].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 }
 
 /**
@@ -184,26 +178,6 @@ export function demandStabilityScore(label: DemandStability): number {
 // Deterministic mock provider — lets Module 1 be developed/tested offline without
 // any API key, and (critically) without touching own-sales data.
 // ---------------------------------------------------------------------------
-
-function hashString(s: string): number {
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
-/** Small deterministic PRNG (mulberry32) so the mock is stable across runs/tests. */
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 function buildSeries(rnd: () => number, base: number): number[] {
   const r = rnd();

@@ -58,11 +58,17 @@ describe('scoreProduct', () => {
     expect(high.score).toBeLessThan(inBand.score);
   });
 
-  it('flags bulky weight class', () => {
+  it('flags bulky weight class and caps its sub-score below passing', () => {
     const light = scoreProduct(signal(), { weightKg: 0.2 }).criteria.find((c) => c.key === 'weightClass')!;
-    const heavy = scoreProduct(signal(), { weightKg: 8 }).criteria.find((c) => c.key === 'weightClass')!;
+    const heavy = scoreProduct(signal(), { weightKg: 5 }).criteria.find((c) => c.key === 'weightClass')!;
     expect(light.score).toBeGreaterThan(heavy.score);
+    expect(heavy.score).toBeLessThanOrEqual(0.4); // bulky can't earn a "pass" weight score
     expect(heavy.detail).toMatch(/bulky/i);
+  });
+
+  it('treats a missing/zero rating as unknown, not as a max review-gap', () => {
+    const unknown = scoreProduct(signal({ avgRating: 0, complaintRate: 0 })).criteria.find((c) => c.key === 'reviewGap')!;
+    expect(unknown.score).toBe(0); // no evidence of a gap, not a fabricated opportunity
   });
 
   it('honours custom weights (zeroing a criterion removes its influence)', () => {

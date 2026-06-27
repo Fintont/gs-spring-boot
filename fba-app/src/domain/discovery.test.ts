@@ -18,6 +18,10 @@ describe('splitCsvLine', () => {
   it('handles escaped quotes', () => {
     expect(splitCsvLine('"12""screen",9')).toEqual(['12"screen', '9']);
   });
+
+  it('treats a mid-field quote (inch mark) as a literal, not a quote opener', () => {
+    expect(splitCsvLine('5" phone stand,12.50,0.3')).toEqual(['5" phone stand', '12.50', '0.3']);
+  });
 });
 
 describe('parseCandidatesCsv', () => {

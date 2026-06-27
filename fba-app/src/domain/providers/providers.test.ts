@@ -69,7 +69,7 @@ describe('mapRainforestToSignal', () => {
     expect(s.avgPrice).toBe(44); // mean(39,49)
     expect(s.avgRating).toBeCloseTo(4.1, 1); // mean(4.1,3.8,4.4)
     expect(s.reviewCount).toBe(220); // median(220,90,500)
-    expect(s.competitorCount).toBe(64);
+    expect(s.competitorCount).toBe(3); // serious listings on the page, not total_results
   });
 
   it('marks demand stability insufficient (no history)', () => {

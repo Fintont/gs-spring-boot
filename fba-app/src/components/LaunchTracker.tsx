@@ -7,10 +7,20 @@ import {
 const STORAGE_KEY = 'fba.launch.v1';
 const DEFS = defaultChecklist();
 
+/** A persisted entry is only usable if it has the fields the UI/domain dereference. */
+function isValidProduct(x: unknown): x is LaunchProduct {
+  const p = x as LaunchProduct;
+  return !!p && typeof p.id === 'string' && typeof p.name === 'string'
+    && typeof p.esmaRegulated === 'boolean' && typeof p.items === 'object' && p.items !== null;
+}
+
 function load(): LaunchProduct[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as LaunchProduct[]) : [];
+    const parsed = raw ? JSON.parse(raw) : [];
+    // Drop anything that doesn't match the current shape (e.g. an older schema), so a
+    // stale/corrupt payload can't crash computeProgress/statusOf during render.
+    return Array.isArray(parsed) ? parsed.filter(isValidProduct) : [];
   } catch {
     return [];
   }
@@ -30,7 +40,7 @@ const STATUS_LABEL: Record<ItemStatus, string> = { todo: 'To do', in_progress: '
 
 export function LaunchTracker() {
   const [products, setProducts] = useState<LaunchProduct[]>(() => load());
-  const [selectedId, setSelectedId] = useState<string | null>(() => load()[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(() => products[0]?.id ?? null);
   const [draft, setDraft] = useState({ name: '', category: '', asin: '', esmaRegulated: false });
 
   useEffect(() => save(products), [products]);
@@ -85,7 +95,8 @@ export function LaunchTracker() {
         {!selected ? (
           <p className="calc__hint">Select or add a product to see its launch checklist.</p>
         ) : (
-          <LaunchDetail product={selected} onUpdate={update} onDelete={() => removeProduct(selected.id)} />
+          // key by product id so switching products remounts the uncontrolled note inputs
+          <LaunchDetail key={selected.id} product={selected} onUpdate={update} onDelete={() => removeProduct(selected.id)} />
         )}
       </section>
     </div>

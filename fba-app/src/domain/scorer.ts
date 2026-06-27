@@ -20,6 +20,7 @@
 
 import { MarketSignal, assertMarketSignal, demandStabilityScore } from './signals';
 import { estimateFbaFee } from './fees';
+import { clamp, round } from './math';
 
 export type CriterionKey = 'demandStability' | 'competitionDepth' | 'reviewGap' | 'priceBandFit' | 'weightClass';
 
@@ -89,9 +90,6 @@ export interface ProductScore {
   provider: string;
 }
 
-const clamp = (n: number, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, n));
-const round = (n: number, dp = 3) => Math.round(n * 10 ** dp) / 10 ** dp;
-
 function verdictForScore(score: number): ScoreVerdict {
   if (score >= 0.66) return 'pass';
   if (score >= 0.4) return 'warn';
@@ -114,8 +112,10 @@ function priceBandScore(price: number, min: number, max: number): number {
 
 function reviewGapScore(complaintRate: number, avgRating: number): number {
   // More complaints and weaker ratings = more room to win on quality.
+  // A missing/zero rating is "unknown", not "terrible" — treat the rating component as
+  // no-evidence-of-a-gap so absent data can't inflate the opportunity score.
   const complaintComponent = clamp(complaintRate / 0.35);
-  const ratingGap = clamp((4.5 - avgRating) / 1.5);
+  const ratingGap = avgRating > 0 ? clamp((4.5 - avgRating) / 1.5) : 0;
   return clamp(0.5 * complaintComponent + 0.5 * ratingGap);
 }
 
@@ -124,8 +124,10 @@ function weightClassScore(weightKg: number | undefined): { score: number; detail
     return { score: 0.6, detail: 'weight unknown — neutral' };
   }
   const fba = estimateFbaFee(weightKg);
-  // Map FBA fee band (8 AED light → 70 AED bulky) to 1..0.
-  const score = clamp(1 - (fba.feeAed - 8) / (70 - 8));
+  // Map FBA fee band (8 AED light → 70 AED bulky) to 1..0, and cap bulky items so a
+  // heavy SKU can't earn a passing weight sub-score.
+  let score = clamp(1 - (fba.feeAed - 8) / (70 - 8));
+  if (fba.bulky) score = Math.min(score, 0.4);
   return { score, detail: `${fba.tier.label}${fba.bulky ? ' — bulky, high FBA fee' : ''}` };
 }
 
@@ -160,7 +162,7 @@ export function scoreProduct(signal: MarketSignal, options: Partial<ScoreOptions
     marketplace: signal.marketplace,
     score,
     verdict,
-    criteria: criteria.map((c) => ({ ...c, score: round(c.score) })),
+    criteria: criteria.map((c) => ({ ...c, score: round(c.score, 3) })),
     provider: signal.provider,
   };
 }

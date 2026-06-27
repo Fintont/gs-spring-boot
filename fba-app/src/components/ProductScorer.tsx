@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { MockMarketSignalProvider, MarketSignal } from '../domain/signals';
 import { scoreProduct, ProductScore, ScoringWeights, DEFAULT_WEIGHTS, CriterionKey } from '../domain/scorer';
+import { fetchJson } from './api';
 
 const mockProvider = new MockMarketSignalProvider();
 type Source = 'mock' | 'keepa' | 'rainforest';
@@ -8,10 +9,7 @@ type Source = 'mock' | 'keepa' | 'rainforest';
 /** Fetch a signal: mock runs client-side; real providers go through the API server. */
 async function fetchSignal(source: Source, keyword: string): Promise<MarketSignal> {
   if (source === 'mock') return mockProvider.fetchSignal(keyword);
-  const res = await fetch(`/api/signal?provider=${source}&keyword=${encodeURIComponent(keyword)}`);
-  const body = await res.json();
-  if (!res.ok) throw new Error(body?.error ?? `API error (${res.status})`);
-  return body as MarketSignal;
+  return fetchJson<MarketSignal>(`/api/signal?provider=${source}&keyword=${encodeURIComponent(keyword)}`);
 }
 
 const verdictMeta: Record<ProductScore['verdict'], { icon: string; label: string; cls: string }> = {
@@ -31,21 +29,25 @@ export function ProductScorer() {
   const [result, setResult] = useState<ProductScore | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const reqId = useRef(0);
 
   const run = async () => {
     if (!keyword.trim()) return;
+    const id = ++reqId.current; // guard against out-of-order responses
     setLoading(true);
     setError(null);
     try {
       const sig = await fetchSignal(source, keyword.trim());
+      if (id !== reqId.current) return; // a newer request superseded this one
       setSignal(sig);
       setResult(scoreProduct(sig, { weights, weightKg: parseFloat(weightKg) || undefined }));
     } catch (e) {
+      if (id !== reqId.current) return;
       setError(e instanceof Error ? e.message : 'Failed to fetch signal');
       setSignal(null);
       setResult(null);
     } finally {
-      setLoading(false);
+      if (id === reqId.current) setLoading(false);
     }
   };
 
@@ -62,7 +64,6 @@ export function ProductScorer() {
       <section className="scorer__intro">
         <h2>Product scorer</h2>
         <p>
-          Enter a keyword to pull a market signal and score it against the Stage-0 criteria.
           Pick a data source, enter a keyword, and score it against the Stage-0 criteria.
           Scoring uses <strong>market signals only</strong> — your own sales data is firewalled
           out by design.

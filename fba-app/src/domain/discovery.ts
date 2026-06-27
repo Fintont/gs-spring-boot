@@ -14,6 +14,7 @@
 
 import { computeMargin, MarginBreakdown, VatTreatment } from './margin';
 import { estimateFbaFee } from './fees';
+import { round } from './math';
 
 export interface CandidateInput {
   name: string;
@@ -170,8 +171,11 @@ export function splitCsvLine(line: string): string[] {
         if (line[i + 1] === '"') { field += '"'; i++; }
         else inQuotes = false;
       } else field += ch;
-    } else if (ch === '"') inQuotes = true;
-    else if (ch === ',') { out.push(field); field = ''; }
+    } else if (ch === '"' && field === '') {
+      // A double-quote only opens a quoted field at the very start of the field;
+      // elsewhere (e.g. an inch mark in `5" stand`) it is a literal character.
+      inQuotes = true;
+    } else if (ch === ',') { out.push(field); field = ''; }
     else field += ch;
   }
   out.push(field);
@@ -227,9 +231,4 @@ export function parseCandidatesCsv(text: string): ParseResult {
     });
   }
   return { candidates, errors };
-}
-
-function round(n: number, dp = 2): number {
-  const f = 10 ** dp;
-  return Math.round((n + Number.EPSILON) * f) / f;
 }

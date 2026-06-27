@@ -18,6 +18,8 @@
  * Either way the VAT line is shown explicitly in the breakdown so nothing is hidden.
  */
 
+import { round } from './math';
+
 export type VatTreatment = 'inclusive' | 'addedCost';
 export type Verdict = 'pass' | 'warn' | 'fail';
 
@@ -81,10 +83,6 @@ export const DEFAULT_INPUTS: Omit<MarginInputs, 'sellingPrice' | 'supplierPrice'
   marginThresholdPct: 0.3,
 };
 
-function round(n: number, dp = 2): number {
-  const f = 10 ** dp;
-  return Math.round((n + Number.EPSILON) * f) / f;
-}
 
 function verdictFor(marginPct: number, threshold: number): Verdict {
   if (marginPct >= threshold) return 'pass';

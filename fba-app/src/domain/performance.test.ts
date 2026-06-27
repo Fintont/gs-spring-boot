@@ -21,7 +21,8 @@ describe('computeSummary', () => {
     const s = computeSummary(product());
     expect(s.units).toBe(25);
     expect(s.revenueAed).toBe(25 * 49);
-    expect(s.acos).toBeCloseTo(0.1, 4); // ad = 10% of revenue
+    // ad = 10% of VAT-incl revenue → 10.5% of ex-VAT revenue (the ACoS base)
+    expect(s.acos).toBeCloseTo(0.105, 4);
   });
 
   it('treats VAT as pass-through in profit', () => {
@@ -55,6 +56,13 @@ describe('reorder logic', () => {
   it('does not flag healthy stock', () => {
     const s = computeSummary(product({ inventory: 1000, reorderThreshold: 60, leadTimeDays: 30, series: series([2, 2, 2, 2, 2], 49) }));
     expect(s.reorderNeeded).toBe(false);
+  });
+
+  it('keeps displayed daysOfCover and the reorder flag consistent at the boundary', () => {
+    // 10 units/day, inventory 304 → 30.4 days, rounds to 30 ≤ leadTime 30 → reorder.
+    const s = computeSummary(product({ inventory: 304, reorderThreshold: 10, leadTimeDays: 30, series: series([10, 10, 10, 10, 10], 49) }));
+    expect(s.daysOfCover).toBe(30);
+    expect(s.reorderNeeded).toBe(true); // matches the shown 30 ≤ 30, no contradiction
   });
 
   it('reorderAlerts returns only products needing restock', () => {

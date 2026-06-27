@@ -10,6 +10,9 @@
  * stands in for SP-API until LWA credentials are supplied; the real adapter is stubbed.
  */
 
+import { round2, round4 } from './math';
+import { mulberry32 } from './rng';
+
 export interface SalesPoint {
   /** ISO date (YYYY-MM-DD). */
   date: string;
@@ -76,8 +79,6 @@ export interface PerfSummary {
   reorderNeeded: boolean;
 }
 
-const round2 = (n: number) => Math.round(n * 100) / 100;
-const round4 = (n: number) => Math.round(n * 10000) / 10000;
 
 /** True net profit for a window: VAT is treated as pass-through (remitted, not retained). */
 export function computeSummary(p: ProductPerformance): PerfSummary {
@@ -94,7 +95,10 @@ export function computeSummary(p: ProductPerformance): PerfSummary {
   const netProfitAed = revenueExVatAed - referralAed - fbaAed - landedAed - adSpendAed;
   const netMarginPct = revenueExVatAed > 0 ? netProfitAed / revenueExVatAed : 0;
   const avgDailyUnits = p.series.length > 0 ? units / p.series.length : 0;
-  const daysOfCover = avgDailyUnits > 0 ? p.inventory / avgDailyUnits : Infinity;
+  const daysOfCoverRaw = avgDailyUnits > 0 ? p.inventory / avgDailyUnits : Infinity;
+  // Round once and base the reorder decision on the SAME value that's displayed, so the
+  // shown days-of-cover and the reorder flag can never contradict each other at the boundary.
+  const daysOfCover = Number.isFinite(daysOfCoverRaw) ? Math.round(daysOfCoverRaw) : Infinity;
   const reorderNeeded = p.inventory <= p.reorderThreshold || daysOfCover <= p.leadTimeDays;
 
   return {
@@ -102,7 +106,8 @@ export function computeSummary(p: ProductPerformance): PerfSummary {
     revenueAed: round2(revenueAed),
     revenueExVatAed: round2(revenueExVatAed),
     adSpendAed: round2(adSpendAed),
-    acos: revenueAed > 0 ? round4(adSpendAed / revenueAed) : 0,
+    // ACoS is measured against ex-VAT revenue, the same base as net profit/margin.
+    acos: revenueExVatAed > 0 ? round4(adSpendAed / revenueExVatAed) : 0,
     referralAed: round2(referralAed),
     fbaAed: round2(fbaAed),
     landedAed: round2(landedAed),
@@ -111,7 +116,7 @@ export function computeSummary(p: ProductPerformance): PerfSummary {
     netMarginPct: round4(netMarginPct),
     profitPerUnitAed: units > 0 ? round2(netProfitAed / units) : 0,
     avgDailyUnits: round2(avgDailyUnits),
-    daysOfCover: Number.isFinite(daysOfCover) ? Math.round(daysOfCover) : Infinity,
+    daysOfCover,
     inventory: p.inventory,
     reorderNeeded,
   };
@@ -159,16 +164,6 @@ export function reorderAlerts(portfolio: ProductPerformance[]): { product: Produ
 // ---------------------------------------------------------------------------
 // Deterministic mock SP-API provider (offline). Real adapter is stubbed below.
 // ---------------------------------------------------------------------------
-
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 const BASE_DATE = '2026-06-01';
 function addDays(iso: string, n: number): string {
