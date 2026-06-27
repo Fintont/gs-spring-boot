@@ -17,7 +17,8 @@ This repo is being built in the agreed sequence. **Step 1 is complete:**
 | 1b | Expo idea-feeder — bulk candidate import + ranking (offline) | ✅ Done |
 | 1c | Market-signal layer — demand/behaviour plane, firewalled from own sales | ✅ Done |
 | 2 | Module 1 scorer (weighted 0–100, mock provider) | ✅ Done |
-| 2b | Real data provider adapter (Keepa **or** Rainforest) | ⏳ Next — needs your pick + key |
+| 2b | Real data providers — Keepa **and** Rainforest adapters + API server | ✅ Done (add your keys) |
+| 3 | Module 2 launch checklist tracker (manual) | ⏳ Next |
 | 3 | Module 2 launch checklist tracker (manual entry) | ◻️ Planned |
 | 4 | Module 2 SP-API live dashboard | ◻️ Planned |
 
@@ -128,12 +129,33 @@ Data currently comes from the offline `MockMarketSignalProvider`. The scorer rou
 input through the `assertMarketSignal` firewall, so own-sales (SP-API) data can never bias
 a score. **Next:** drop in a real provider — see below.
 
-### Plugging in a real provider (step 2b)
+### Step 2b — Real data providers (Keepa + Rainforest)
 
-Implement `MarketSignalProvider` (`src/domain/signals.ts`) for Keepa or Rainforest:
-map their response to a `MarketSignal` and read the API key from an env var
-(`KEEPA_API_KEY` / `RAINFOREST_API_KEY`) — never hardcoded. The scorer and UI need no
-changes; just swap the provider instance.
+Both providers are implemented behind the `MarketSignalProvider` interface, with the API
+keys held **server-side** (never in the browser):
+
+- **Keepa** (`src/domain/providers/keepa.ts`) — maps a product's sales-rank history into the
+  demand series, so the steady-vs-spike classifier has real data. Best for demand trend.
+- **Rainforest** (`src/domain/providers/rainforest.ts`) — aggregates a live search into
+  competition depth, pricing and review signals. (No rank history, so it reports demand
+  stability as "insufficient" — pair it with Keepa for the trend.)
+
+The response→`MarketSignal` mappers are pure and **fixture-unit-tested**; the provider
+classes do the HTTP. A small zero-dependency Node server exposes them:
+
+```bash
+cp .env.example .env          # add KEEPA_API_KEY and/or RAINFOREST_API_KEY
+npm run dev:server            # market-data API on :8787 (mock works with no key)
+npm run dev                   # Vite app on :5173, proxies /api → :8787
+```
+
+In the **Product scorer** tab pick the data source (Mock / Keepa / Rainforest). Mock runs
+fully offline in the browser; Keepa/Rainforest go through the server. Endpoints:
+`GET /api/health` and `GET /api/signal?keyword=…&provider=…&marketplace=amazon.ae`.
+
+> ⚠️ The provider classes' live request URLs (and the Keepa **domain id for amazon.ae**)
+> should be verified against your plan — they're marked `TODO: verify` in code, since the
+> mappers are what the tests cover.
 
 ### ⚠️ FBA fee estimates are indicative
 
@@ -153,8 +175,11 @@ fba-app/
       discovery.ts expo/supplier CSV import, evaluation & ranking
       signals.ts   market-signal plane, firewall & demand-stability classifier
       scorer.ts    weighted 0–100 Module 1 scoring engine
+      providers/   Keepa & Rainforest adapters (pure mappers + HTTP classes)
       *.test.ts    Vitest unit tests
     components/     React UI (MarginCalculator, ExpoImport, ProductScorer)
+  server/
+    index.ts        zero-dependency market-data API (holds provider keys)
   docs/
     data-separation.md  market vs. own-sales data governance
     App.tsx

@@ -2,7 +2,17 @@ import { useState } from 'react';
 import { MockMarketSignalProvider, MarketSignal } from '../domain/signals';
 import { scoreProduct, ProductScore, ScoringWeights, DEFAULT_WEIGHTS, CriterionKey } from '../domain/scorer';
 
-const provider = new MockMarketSignalProvider();
+const mockProvider = new MockMarketSignalProvider();
+type Source = 'mock' | 'keepa' | 'rainforest';
+
+/** Fetch a signal: mock runs client-side; real providers go through the API server. */
+async function fetchSignal(source: Source, keyword: string): Promise<MarketSignal> {
+  if (source === 'mock') return mockProvider.fetchSignal(keyword);
+  const res = await fetch(`/api/signal?provider=${source}&keyword=${encodeURIComponent(keyword)}`);
+  const body = await res.json();
+  if (!res.ok) throw new Error(body?.error ?? `API error (${res.status})`);
+  return body as MarketSignal;
+}
 
 const verdictMeta: Record<ProductScore['verdict'], { icon: string; label: string; cls: string }> = {
   go: { icon: '✅', label: 'GO', cls: 'verdict--pass' },
@@ -16,17 +26,27 @@ export function ProductScorer() {
   const [keyword, setKeyword] = useState('silicone collapsible bottle');
   const [weightKg, setWeightKg] = useState('0.2');
   const [weights, setWeights] = useState<ScoringWeights>(DEFAULT_WEIGHTS);
+  const [source, setSource] = useState<Source>('mock');
   const [signal, setSignal] = useState<MarketSignal | null>(null);
   const [result, setResult] = useState<ProductScore | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const run = async () => {
     if (!keyword.trim()) return;
     setLoading(true);
-    const sig = await provider.fetchSignal(keyword.trim());
-    setSignal(sig);
-    setResult(scoreProduct(sig, { weights, weightKg: parseFloat(weightKg) || undefined }));
-    setLoading(false);
+    setError(null);
+    try {
+      const sig = await fetchSignal(source, keyword.trim());
+      setSignal(sig);
+      setResult(scoreProduct(sig, { weights, weightKg: parseFloat(weightKg) || undefined }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to fetch signal');
+      setSignal(null);
+      setResult(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const reweight = (key: CriterionKey, value: number) => {
@@ -43,21 +63,30 @@ export function ProductScorer() {
         <h2>Product scorer</h2>
         <p>
           Enter a keyword to pull a market signal and score it against the Stage-0 criteria.
-          Data here comes from the <strong>offline mock provider</strong> — swap in Keepa or
-          Rainforest in phase 2. Scoring uses <strong>market signals only</strong>; your own
-          sales data is firewalled out by design.
+          Pick a data source, enter a keyword, and score it against the Stage-0 criteria.
+          Scoring uses <strong>market signals only</strong> — your own sales data is firewalled
+          out by design.
         </p>
       </section>
 
       <section className="scorer__controls">
+        <label className="calc__field"><span>Source</span>
+          <select value={source} onChange={(e) => setSource(e.target.value as Source)}>
+            <option value="mock">Mock (offline)</option>
+            <option value="keepa">Keepa (needs key + server)</option>
+            <option value="rainforest">Rainforest (needs key + server)</option>
+          </select>
+        </label>
         <label className="calc__field"><span>Keyword / product</span>
-          <input value={keyword} onChange={(e) => setKeyword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && run()} style={{ width: 260, textAlign: 'left' }} />
+          <input value={keyword} onChange={(e) => setKeyword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && run()} style={{ width: 240, textAlign: 'left' }} />
         </label>
         <label className="calc__field"><span>Unit weight (kg)</span>
           <input type="number" step="any" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} style={{ width: 90 }} />
         </label>
         <button className="btn" onClick={run} disabled={loading}>{loading ? 'Scoring…' : 'Score'}</button>
       </section>
+
+      {error && <div className="expo__errors">⚠️ {error}{source !== 'mock' && ' — is the API server running (npm run dev:server) with the key set?'}</div>}
 
       {result && v && signal && (
         <section className="scorer__results">
