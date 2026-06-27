@@ -15,6 +15,7 @@ This repo is being built in the agreed sequence. **Step 1 is complete:**
 |---|-------------|--------|
 | 1 | Landed-cost + margin calculator (offline, no API) | ✅ Done |
 | 1b | Expo idea-feeder — bulk candidate import + ranking (offline) | ✅ Done |
+| 1c | Market-signal layer — demand/behaviour plane, firewalled from own sales | ✅ Done |
 | 2 | Module 1 scorer + one data provider (Keepa/Rainforest) | ⏳ Next |
 | 3 | Module 2 launch checklist tracker (manual entry) | ◻️ Planned |
 | 4 | Module 2 SP-API live dashboard | ◻️ Planned |
@@ -86,6 +87,24 @@ Amazon.ae demand/competition data.
 > cross-reference category competition depth on Amazon.ae — categories with many expo
 > suppliers but few/weak local listings are the white-space opportunities.
 
+## Step 1c — Market-signal layer (unbiased demand plane)
+
+Module 1 measures demand and shopper behaviour **independently of our own sales**. Two
+signal planes are kept strictly apart and enforced in code:
+
+- **Market signal** (`source: 'market'`) — demand level & trend, competition depth,
+  reviews, ratings, complaint/review-gap, price spread. Feeds discovery & scoring.
+- **Own-sales signal** (`source: 'own-sales'`, Amazon SP-API) — our units/revenue/ACoS/
+  inventory. Feeds Module 2 tracking only.
+
+The scoring path calls `assertMarketSignal()` / `collectMarketSignals()`, which **throw**
+if own-sales (SP-API) data ever reaches it — structurally preventing the survivorship/
+confirmation bias of judging *new* products by how our *existing* catalogue sells.
+`classifyDemandStability()` distinguishes **steady vs. one-off spike** demand. A
+deterministic `MockMarketSignalProvider` enables offline development with no API key.
+
+See [`docs/data-separation.md`](docs/data-separation.md) for the full rationale.
+
 ### ⚠️ FBA fee estimates are indicative
 
 The weight-based FBA fee estimator (`src/domain/fees.ts`) is a **sanity-check
@@ -102,8 +121,11 @@ fba-app/
       margin.ts    landed-cost + margin engine
       fees.ts      Amazon.ae FBA fee estimator
       discovery.ts expo/supplier CSV import, evaluation & ranking
+      signals.ts   market-signal plane, firewall & demand-stability classifier
       *.test.ts    Vitest unit tests
     components/     React UI (MarginCalculator, ExpoImport)
+  docs/
+    data-separation.md  market vs. own-sales data governance
     App.tsx
     main.tsx
 ```
