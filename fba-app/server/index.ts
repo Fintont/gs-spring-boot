@@ -14,6 +14,7 @@ import { createServer, IncomingMessage, ServerResponse } from 'node:http';
 import { MockMarketSignalProvider, MarketSignalProvider } from '../src/domain/signals';
 import { KeepaProvider } from '../src/domain/providers/keepa';
 import { RainforestProvider } from '../src/domain/providers/rainforest';
+import { MockSpApiProvider, RealSpApiProvider, SpApiProvider } from '../src/domain/performance';
 
 const PORT = Number(process.env.PORT) || 8787;
 
@@ -38,6 +39,18 @@ function makeProvider(name: string): MarketSignalProvider {
   }
 }
 
+function makeSpApiProvider(name: string): SpApiProvider {
+  if (name === 'spapi') {
+    return new RealSpApiProvider({
+      clientId: process.env.SPAPI_LWA_CLIENT_ID,
+      clientSecret: process.env.SPAPI_LWA_CLIENT_SECRET,
+      refreshToken: process.env.SPAPI_LWA_REFRESH_TOKEN,
+      marketplaceId: process.env.SPAPI_MARKETPLACE_ID,
+    });
+  }
+  return new MockSpApiProvider();
+}
+
 function send(res: ServerResponse, status: number, body: unknown) {
   const json = JSON.stringify(body);
   res.writeHead(status, {
@@ -54,7 +67,17 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
     return send(res, 200, {
       ok: true,
       providers: { mock: true, keepa: !!process.env.KEEPA_API_KEY, rainforest: !!process.env.RAINFOREST_API_KEY },
+      spapi: !!process.env.SPAPI_LWA_REFRESH_TOKEN,
     });
+  }
+
+  if (url.pathname === '/api/performance') {
+    const providerName = url.searchParams.get('provider') ?? 'mock';
+    try {
+      return send(res, 200, await makeSpApiProvider(providerName).fetchPortfolio());
+    } catch (err) {
+      return send(res, 502, { error: err instanceof Error ? err.message : 'provider error' });
+    }
   }
 
   if (url.pathname === '/api/signal') {

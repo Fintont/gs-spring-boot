@@ -19,7 +19,7 @@ This repo is being built in the agreed sequence. **Step 1 is complete:**
 | 2 | Module 1 scorer (weighted 0–100, mock provider) | ✅ Done |
 | 2b | Real data providers — Keepa **and** Rainforest adapters + API server | ✅ Done (add your keys) |
 | 3 | Module 2 launch checklist tracker (UAE compliance-aware, manual) | ✅ Done |
-| 4 | Module 2 SP-API live dashboard | ⏳ Next — needs your seller account |
+| 4 | Module 2 performance dashboard (mock SP-API; real adapter stubbed) | ✅ Done (add SP-API creds) |
 | 3 | Module 2 launch checklist tracker (manual entry) | ◻️ Planned |
 | 4 | Module 2 SP-API live dashboard | ◻️ Planned |
 
@@ -176,6 +176,26 @@ State persists in the browser (`localStorage`) — single-user and offline, no s
 The domain logic (`src/domain/launch.ts`) is pure and unit-tested, so it can move to a
 server-side store later (e.g. shared with the Module 2 dashboard).
 
+## Step 4 — Module 2 performance dashboard
+
+The **Dashboard** tab tracks live performance per product on the **own-sales plane**:
+
+- **KPIs:** revenue, units, **ACoS**, net profit, true net margin, **profit/unit**, inventory,
+  **days of cover** (ACoS and margin/cover cells turn amber when off-target).
+- **Reorder alerts:** flagged when inventory ≤ threshold or days-of-cover ≤ lead time.
+- **Charts** (dependency-free SVG): sales (units/day), inventory burn-down, net margin over time.
+- **Profit tracker:** actual landed cost vs. revenue vs. fees → true net margin (VAT treated as
+  pass-through), computed in the pure, unit-tested `src/domain/performance.ts`.
+
+Data comes from a deterministic **mock SP-API provider** so the whole dashboard runs offline.
+The **real Amazon SP-API adapter is stubbed** (`RealSpApiProvider`) — completing it needs your
+seller account's LWA credentials (`SPAPI_LWA_CLIENT_ID/SECRET/REFRESH_TOKEN`,
+`SPAPI_MARKETPLACE_ID=A2VIGQ35RCS4UA` for amazon.ae) plus the Orders/Finances/FBA-Inventory
+endpoints. Endpoint: `GET /api/performance?provider=mock|spapi`.
+
+This plane is **firewalled from Module 1**: performance data is tagged `source: 'own-sales'`
+and `assertOwnSales` is the symmetric guard to the scorer's `assertMarketSignal`.
+
 ### ⚠️ FBA fee estimates are indicative
 
 The weight-based FBA fee estimator (`src/domain/fees.ts`) is a **sanity-check
@@ -196,8 +216,9 @@ fba-app/
       scorer.ts    weighted 0–100 Module 1 scoring engine
       providers/   Keepa & Rainforest adapters (pure mappers + HTTP classes)
       launch.ts    Module 2 UAE launch checklist (compliance-aware)
+      performance.ts  Module 2 own-sales metrics, profit/reorder, mock SP-API
       *.test.ts    Vitest unit tests
-    components/     React UI (MarginCalculator, ExpoImport, ProductScorer, LaunchTracker)
+    components/     React UI (calculator, expo, scorer, launch, dashboard, charts)
   server/
     index.ts        zero-dependency market-data API (holds provider keys)
   docs/

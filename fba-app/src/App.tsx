@@ -3,8 +3,9 @@ import { MarginCalculator } from './components/MarginCalculator';
 import { ExpoImport } from './components/ExpoImport';
 import { ProductScorer } from './components/ProductScorer';
 import { LaunchTracker } from './components/LaunchTracker';
+import { Dashboard } from './components/Dashboard';
 
-type Tab = 'calculator' | 'import' | 'scorer' | 'launch';
+type Tab = 'calculator' | 'import' | 'scorer' | 'launch' | 'dashboard';
 
 export function App() {
   const [tab, setTab] = useState<Tab>('calculator');
@@ -26,10 +27,13 @@ export function App() {
           <button role="tab" aria-selected={tab === 'launch'} className={tab === 'launch' ? 'tabs__btn tabs__btn--active' : 'tabs__btn'} onClick={() => setTab('launch')}>
             Launch tracker
           </button>
+          <button role="tab" aria-selected={tab === 'dashboard'} className={tab === 'dashboard' ? 'tabs__btn tabs__btn--active' : 'tabs__btn'} onClick={() => setTab('dashboard')}>
+            Dashboard
+          </button>
         </nav>
       </header>
       <main>
-        {tab === 'calculator' ? <MarginCalculator /> : tab === 'import' ? <ExpoImport /> : tab === 'scorer' ? <ProductScorer /> : <LaunchTracker />}
+        {tab === 'calculator' ? <MarginCalculator /> : tab === 'import' ? <ExpoImport /> : tab === 'scorer' ? <ProductScorer /> : tab === 'launch' ? <LaunchTracker /> : <Dashboard />}
       </main>
       <footer className="app__footer">
         <span>Phase 1 · offline (no API). Live market data &amp; scoring arrive in phase 2.</span>
