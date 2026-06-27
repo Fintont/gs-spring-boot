@@ -18,7 +18,8 @@ This repo is being built in the agreed sequence. **Step 1 is complete:**
 | 1c | Market-signal layer — demand/behaviour plane, firewalled from own sales | ✅ Done |
 | 2 | Module 1 scorer (weighted 0–100, mock provider) | ✅ Done |
 | 2b | Real data providers — Keepa **and** Rainforest adapters + API server | ✅ Done (add your keys) |
-| 3 | Module 2 launch checklist tracker (manual) | ⏳ Next |
+| 3 | Module 2 launch checklist tracker (UAE compliance-aware, manual) | ✅ Done |
+| 4 | Module 2 SP-API live dashboard | ⏳ Next — needs your seller account |
 | 3 | Module 2 launch checklist tracker (manual entry) | ◻️ Planned |
 | 4 | Module 2 SP-API live dashboard | ◻️ Planned |
 
@@ -157,6 +158,24 @@ fully offline in the browser; Keepa/Rainforest go through the server. Endpoints:
 > should be verified against your plan — they're marked `TODO: verify` in code, since the
 > mappers are what the tests cover.
 
+## Step 3 — Module 2 launch checklist tracker
+
+The **Launch tracker** tab manages the go-live workflow per product, with the UAE-specific
+compliance steps built in:
+
+- **IOR arranged**, **VAT registration (FTA TRN)**, **HS code & customs**, **GTIN/barcodes**,
+  **ESMA conformity**, **listing live**, **inventory shipped to FBA**.
+- **ESMA is compliance-aware:** it only applies to ESMA-regulated product types. Flag a
+  product as regulated and the ESMA step becomes required and highlighted; otherwise it's
+  auto-marked N/A and excluded from progress.
+- Per-item status (To do / In progress / Done) and a free-text note (TRN, broker, tracking),
+  a progress bar, the list of **blocking** items, and a 🚀 **launch-ready** badge when every
+  required applicable step is done.
+
+State persists in the browser (`localStorage`) — single-user and offline, no server needed.
+The domain logic (`src/domain/launch.ts`) is pure and unit-tested, so it can move to a
+server-side store later (e.g. shared with the Module 2 dashboard).
+
 ### ⚠️ FBA fee estimates are indicative
 
 The weight-based FBA fee estimator (`src/domain/fees.ts`) is a **sanity-check
@@ -176,8 +195,9 @@ fba-app/
       signals.ts   market-signal plane, firewall & demand-stability classifier
       scorer.ts    weighted 0–100 Module 1 scoring engine
       providers/   Keepa & Rainforest adapters (pure mappers + HTTP classes)
+      launch.ts    Module 2 UAE launch checklist (compliance-aware)
       *.test.ts    Vitest unit tests
-    components/     React UI (MarginCalculator, ExpoImport, ProductScorer)
+    components/     React UI (MarginCalculator, ExpoImport, ProductScorer, LaunchTracker)
   server/
     index.ts        zero-dependency market-data API (holds provider keys)
   docs/

@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { MarginCalculator } from './components/MarginCalculator';
 import { ExpoImport } from './components/ExpoImport';
 import { ProductScorer } from './components/ProductScorer';
+import { LaunchTracker } from './components/LaunchTracker';
 
-type Tab = 'calculator' | 'import' | 'scorer';
+type Tab = 'calculator' | 'import' | 'scorer' | 'launch';
 
 export function App() {
   const [tab, setTab] = useState<Tab>('calculator');
@@ -22,9 +23,14 @@ export function App() {
           <button role="tab" aria-selected={tab === 'scorer'} className={tab === 'scorer' ? 'tabs__btn tabs__btn--active' : 'tabs__btn'} onClick={() => setTab('scorer')}>
             Product scorer
           </button>
+          <button role="tab" aria-selected={tab === 'launch'} className={tab === 'launch' ? 'tabs__btn tabs__btn--active' : 'tabs__btn'} onClick={() => setTab('launch')}>
+            Launch tracker
+          </button>
         </nav>
       </header>
-      <main>{tab === 'calculator' ? <MarginCalculator /> : tab === 'import' ? <ExpoImport /> : <ProductScorer />}</main>
+      <main>
+        {tab === 'calculator' ? <MarginCalculator /> : tab === 'import' ? <ExpoImport /> : tab === 'scorer' ? <ProductScorer /> : <LaunchTracker />}
+      </main>
       <footer className="app__footer">
         <span>Phase 1 · offline (no API). Live market data &amp; scoring arrive in phase 2.</span>
       </footer>
