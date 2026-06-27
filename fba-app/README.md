@@ -14,6 +14,7 @@ This repo is being built in the agreed sequence. **Step 1 is complete:**
 | # | Deliverable | Status |
 |---|-------------|--------|
 | 1 | Landed-cost + margin calculator (offline, no API) | ✅ Done |
+| 1b | Expo idea-feeder — bulk candidate import + ranking (offline) | ✅ Done |
 | 2 | Module 1 scorer + one data provider (Keepa/Rainforest) | ⏳ Next |
 | 3 | Module 2 launch checklist tracker (manual entry) | ◻️ Planned |
 | 4 | Module 2 SP-API live dashboard | ◻️ Planned |
@@ -56,6 +57,35 @@ UAE VAT is 5% and Amazon.ae prices are VAT-inclusive. Two modes:
 
 The VAT line is always shown explicitly in the breakdown.
 
+## Step 1b — Expo idea-feeder (product discovery)
+
+The top of the funnel: turn a list of candidate products — exported from a Chinese
+expo's online catalogue (Canton Fair, Yiwu/Yiwugo, Global Sources, HKTDC) or a
+supplier sheet — into a **ranked shortlist**, by running every item through the same
+offline margin engine.
+
+Open the **Expo idea-feeder** tab, then paste or upload a CSV:
+
+```
+name,category,supplier,wholesale,weight,moq,sellingPrice
+Silicone collapsible bottle,Kitchen,Yiwu Hongda,2.40,0.18,500,45
+```
+
+- **Required columns:** `name`, a cost column (`cost`/`wholesale`/`price`), `weight`.
+- **Optional:** `category`, `supplier`, `sellingPrice`, `moq`, `freight`.
+- Cost is in the **import currency** (set the FX→AED rate in "Import assumptions";
+  USD→AED is the pegged 3.6725). Rows missing a sell price/freight use the defaults.
+
+Each candidate is scored for net margin and flagged for **bulky/heavy** (high FBA fee),
+**out-of-band price** (outside AED 30–60) and **thin margin**. The shortlist (clears the
+margin floor, not bulky, profitable) sorts to the top and exports to CSV — that file is
+the natural input to the phase-2 scorer, which will enrich each candidate with live
+Amazon.ae demand/competition data.
+
+> Tip for "opening a new market": collect expo candidates by category, then in phase 2
+> cross-reference category competition depth on Amazon.ae — categories with many expo
+> suppliers but few/weak local listings are the white-space opportunities.
+
 ### ⚠️ FBA fee estimates are indicative
 
 The weight-based FBA fee estimator (`src/domain/fees.ts`) is a **sanity-check
@@ -71,8 +101,9 @@ fba-app/
     domain/        pure, framework-free business logic (unit-tested)
       margin.ts    landed-cost + margin engine
       fees.ts      Amazon.ae FBA fee estimator
+      discovery.ts expo/supplier CSV import, evaluation & ranking
       *.test.ts    Vitest unit tests
-    components/     React UI
+    components/     React UI (MarginCalculator, ExpoImport)
     App.tsx
     main.tsx
 ```
