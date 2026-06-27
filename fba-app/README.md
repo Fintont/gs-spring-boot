@@ -16,7 +16,8 @@ This repo is being built in the agreed sequence. **Step 1 is complete:**
 | 1 | Landed-cost + margin calculator (offline, no API) | ✅ Done |
 | 1b | Expo idea-feeder — bulk candidate import + ranking (offline) | ✅ Done |
 | 1c | Market-signal layer — demand/behaviour plane, firewalled from own sales | ✅ Done |
-| 2 | Module 1 scorer + one data provider (Keepa/Rainforest) | ⏳ Next |
+| 2 | Module 1 scorer (weighted 0–100, mock provider) | ✅ Done |
+| 2b | Real data provider adapter (Keepa **or** Rainforest) | ⏳ Next — needs your pick + key |
 | 3 | Module 2 launch checklist tracker (manual entry) | ◻️ Planned |
 | 4 | Module 2 SP-API live dashboard | ◻️ Planned |
 
@@ -105,6 +106,35 @@ deterministic `MockMarketSignalProvider` enables offline development with no API
 
 See [`docs/data-separation.md`](docs/data-separation.md) for the full rationale.
 
+## Step 2 — Module 1 scorer (0–100)
+
+The **Product scorer** tab pulls a market signal for a keyword and scores it against the
+Stage-0 criteria into a weighted **0–100 score** with a **GO / WATCH / NO-GO** verdict and
+a ✅/⚠️/❌ breakdown per criterion:
+
+| Criterion | Default weight | Signal |
+|---|---|---|
+| Demand stability | 0.25 | steady vs. one-spike classification |
+| Competition depth | 0.20 | serious listings (≤45 good, ≥150 saturated) |
+| Review-gap opportunity | 0.20 | complaint rate + weak ratings to beat |
+| Price-band fit | 0.15 | avg price vs. AED 30–60 |
+| Weight/size class | 0.20 | FBA fee band (bulky → penalised) |
+
+**Weights are yours to tune** — adjust the sliders in the UI (or pass a `ScoringWeights`
+object to `scoreProduct`); they are normalised, so they need not sum to 1. The thresholds
+(GO ≥ 70, WATCH ≥ 50) and competition bands are configurable too.
+
+Data currently comes from the offline `MockMarketSignalProvider`. The scorer routes every
+input through the `assertMarketSignal` firewall, so own-sales (SP-API) data can never bias
+a score. **Next:** drop in a real provider — see below.
+
+### Plugging in a real provider (step 2b)
+
+Implement `MarketSignalProvider` (`src/domain/signals.ts`) for Keepa or Rainforest:
+map their response to a `MarketSignal` and read the API key from an env var
+(`KEEPA_API_KEY` / `RAINFOREST_API_KEY`) — never hardcoded. The scorer and UI need no
+changes; just swap the provider instance.
+
 ### ⚠️ FBA fee estimates are indicative
 
 The weight-based FBA fee estimator (`src/domain/fees.ts`) is a **sanity-check
@@ -122,8 +152,9 @@ fba-app/
       fees.ts      Amazon.ae FBA fee estimator
       discovery.ts expo/supplier CSV import, evaluation & ranking
       signals.ts   market-signal plane, firewall & demand-stability classifier
+      scorer.ts    weighted 0–100 Module 1 scoring engine
       *.test.ts    Vitest unit tests
-    components/     React UI (MarginCalculator, ExpoImport)
+    components/     React UI (MarginCalculator, ExpoImport, ProductScorer)
   docs/
     data-separation.md  market vs. own-sales data governance
     App.tsx

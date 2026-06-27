@@ -120,3 +120,17 @@ legend { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; lett
 
 .flag-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); margin-left: 5px; vertical-align: middle; }
 .flag-dot--red { background: var(--fail); }
+
+/* Product scorer */
+.scorer { margin-top: 20px; }
+.scorer__intro h2 { margin: 0 0 8px; font-size: 1.15rem; }
+.scorer__intro p { margin: 0 0 8px; color: var(--muted); line-height: 1.5; }
+.scorer__controls { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; }
+.scorer__results { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.scorebar { background: var(--panel-2); border-radius: 4px; height: 7px; overflow: hidden; }
+.scorebar__fill { height: 100%; background: var(--accent); }
+.scorer__weight { vertical-align: middle; width: 96px; }
+.scorer__weightval { color: var(--muted); font-size: 0.8rem; margin-left: 6px; }
+.scorer__raw { margin-top: 14px; color: var(--muted); }
+.scorer__raw summary { cursor: pointer; font-size: 0.85rem; }
+.scorer__raw pre { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px; overflow: auto; font-size: 0.78rem; }
